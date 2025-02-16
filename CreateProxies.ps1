@@ -23,61 +23,76 @@ Try {
     $coreCount = 1  # Default to 1 core if there's an error
 }
 
-# Ensure the "proxy" subdirectory exists
-$proxyDir = Join-Path -Path $PSScriptRoot -ChildPath "proxy"
-if (-not (Test-Path -Path $proxyDir)) {
-    Try {
-        New-Item -ItemType Directory -Path $proxyDir
-    } Catch {
-        Write-Host "Error creating proxy directory: $_"
-        Exit
-    }
-}
+# Function to process video files in a directory
+function Process-VideosInDirectory {
+    param (
+        [string]$directory
+    )
 
-# Get all video files in the current directory (excluding subdirectories)
-$videoFiles = Get-ChildItem -Path $PSScriptRoot -File | Where-Object {
-    $_.Extension -match '\.(mp4|avi|mkv|mov|wmv)$'
-}
-
-# Check and remove proxies for videos no longer in source directory
-Get-ChildItem -Path $proxyDir -Filter *.mov | ForEach-Object {
-    $originalFile = (Get-ChildItem -Path $PSScriptRoot -File | Where-Object { 
-        $_.BaseName -eq $_.BaseName -and $_.Name -replace '\.mov$', '' -like $_.Name
-    })
-    if (-not $originalFile) {
-        Remove-Item $_.FullName -Force
-        Write-Host "Removed proxy $($_.Name) as original video not found."
-    }
-}
-
-foreach ($file in $videoFiles) {
-    # Construct the output file name and path
-    $outputFile = Join-Path -Path $proxyDir -ChildPath ($file.BaseName + ".mov")
-    $tempOutputFile = $outputFile + ".tmp"
-    
-    # Check if proxy already exists
-    if (Test-Path -Path $outputFile) {
-        Write-Host "Proxy for $($file.Name) already exists. Skipping."
-        continue
-    }
-    
-    # Use FFmpeg to encode the video with specified parameters
-    $ffmpegCommand = "ffmpeg -threads $coreCount -i `"$($file.FullName)`" -c:v $videoCodec -b:v $bitRate -vf `"scale='min($maxDimension, iw)':-2`" -f mov `"$tempOutputFile`""
-    
-    Write-Host "Creating proxy for $($file.Name)"
-    Write-Verbose "FFmpeg command: $ffmpegCommand"
-    
-    Try {
-        Invoke-Expression $ffmpegCommand
-        if ($LASTEXITCODE -eq 0) {
-            Rename-Item -Path $tempOutputFile -NewName $outputFile
-            Write-Host "Proxy created successfully for $($file.Name)"
-        } else {
-            Write-Host "Failed to create proxy for $($file.Name)"
+    # Ensure the "proxy" subdirectory exists
+    $proxyDir = Join-Path -Path $directory -ChildPath "proxy"
+    if (-not (Test-Path -Path $proxyDir)) {
+        Try {
+            New-Item -ItemType Directory -Path $proxyDir
+        } Catch {
+            Write-Host "Error creating proxy directory: $_"
+            return
         }
-    } Catch {
-        Write-Host "Error creating proxy for $($file.Name): $_"
+    }
+
+    # Get all video files in the current directory (excluding subdirectories)
+    $videoFiles = Get-ChildItem -Path $directory -File | Where-Object {
+        $_.Extension -match '\.(mp4|avi|mkv|mov|wmv)$'
+    }
+
+    # Check and remove proxies for videos no longer in source directory
+    Get-ChildItem -Path $proxyDir -Filter *.mov | ForEach-Object {
+        $originalFile = (Get-ChildItem -Path $directory -File | Where-Object { 
+            $_.BaseName -eq $_.BaseName -and $_.Name -replace '\.mov$', '' -like $_.Name
+        })
+        if (-not $originalFile) {
+            Remove-Item $_.FullName -Force
+            Write-Host "Removed proxy $($_.Name) as original video not found."
+        }
+    }
+
+    foreach ($file in $videoFiles) {
+        # Construct the output file name and path
+        $outputFile = Join-Path -Path $proxyDir -ChildPath ($file.BaseName + ".mov")
+        $tempOutputFile = $outputFile + ".tmp"
+        
+        # Check if proxy already exists
+        if (Test-Path -Path $outputFile) {
+            Write-Host "Proxy for $($file.Name) already exists. Skipping."
+            continue
+        }
+        
+        # Use FFmpeg to encode the video with specified parameters
+        $ffmpegCommand = "ffmpeg -threads $coreCount -i `"$($file.FullName)`" -c:v $videoCodec -b:v $bitRate -vf `"scale='min($maxDimension, iw)':-2`" -f mov `"$tempOutputFile`""
+        
+        Write-Host "Creating proxy for $($file.Name)"
+        Write-Verbose "FFmpeg command: $ffmpegCommand"
+        
+        Try {
+            Invoke-Expression $ffmpegCommand
+            if ($LASTEXITCODE -eq 0) {
+                Rename-Item -Path $tempOutputFile -NewName $outputFile
+                Write-Host "Proxy created successfully for $($file.Name)"
+            } else {
+                Write-Host "Failed to create proxy for $($file.Name)"
+            }
+        } Catch {
+            Write-Host "Error creating proxy for $($file.Name): $_"
+        }
     }
 }
+
+# Recursively process all directories
+Get-ChildItem -Path $PSScriptRoot -Recurse -Directory | ForEach-Object {
+    Process-VideosInDirectory -directory $_.FullName
+}
+
+# Process the root directory as well
+Process-VideosInDirectory -directory $PSScriptRoot
 
 Read-Host -Prompt "Press Enter to exit"
