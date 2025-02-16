@@ -2,7 +2,7 @@
 setlocal enabledelayedexpansion
 
 REM Enable debug mode
-set "debug=true"
+set "debug=false"
 
 REM Define parameters for video encoding
 set "videoCodec=libx265"
