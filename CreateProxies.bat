@@ -128,10 +128,10 @@ if errorlevel 1 (
     goto :eof
 )
 
-REM Rename the temporary output file to the final output file
-rename "%tempOutputFile%" "%outputFile%"
+REM Rename the temporary output file to the final output file using move command
+move /y "%tempOutputFile%" "%outputFile%"
 if errorlevel 1 (
-    echo Error renaming temporary file for %file%
+    echo Error moving temporary file for %file%
     goto :eof
 )
 
