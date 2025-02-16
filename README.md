@@ -37,7 +37,11 @@ All you need to do is throw a copy of the appropriate script into any folder whe
 
 3. **Run the script:**
 
-    Double-click the [CreateProxies.bat](http://_vscodecontentref_/1) file to execute the script.
+    Double-click the [CreateProxies.bat](https://github.com/tezza1971/CreateProxies/blob/main/CreateProxies.bat) file to execute the script.
+    Or use the [PowerShell version](https://github.com/tezza1971/CreateProxies/blob/main/CreateProxies.ps1) (more robust) by executing it with 
+    ```sh
+    powershell -ExecutionPolicy Bypass -File CreateProxies.ps1
+    ```
 
 ### macOS and Linux
 
