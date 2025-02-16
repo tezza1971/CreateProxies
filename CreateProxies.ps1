@@ -15,6 +15,9 @@ $videoCodec = "libx265"
 $bitRate = "1M"  # Low bitrate for proxies
 $maxDimension = 1920
 
+# Define the name for the proxy directory
+$ProxyDirName = "Proxy"
+
 # Get the number of CPU cores with exception handling
 Try {
     $coreCount = (Get-WmiObject Win32_Processor | Measure-Object -Property NumberOfLogicalProcessors -Sum).Sum
@@ -29,8 +32,8 @@ function Process-VideosInDirectory {
         [string]$directory
     )
 
-    # Ensure the "proxy" subdirectory exists
-    $proxyDir = Join-Path -Path $directory -ChildPath "proxy"
+    # Ensure the proxy subdirectory exists
+    $proxyDir = Join-Path -Path $directory -ChildPath $ProxyDirName
     if (-not (Test-Path -Path $proxyDir)) {
         Try {
             New-Item -ItemType Directory -Path $proxyDir
@@ -87,8 +90,10 @@ function Process-VideosInDirectory {
     }
 }
 
-# Recursively process all directories
-Get-ChildItem -Path $PSScriptRoot -Recurse -Directory | ForEach-Object {
+# Recursively process all directories, excluding proxy directories
+Get-ChildItem -Path $PSScriptRoot -Recurse -Directory | Where-Object {
+    $_.Name -notmatch "^$ProxyDirName$" -and $_.FullName -notmatch "\\$ProxyDirName\\"
+} | ForEach-Object {
     Process-VideosInDirectory -directory $_.FullName
 }
 

@@ -1,81 +1,103 @@
-@echo off
-setlocal
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
-:: Define parameters for video encoding
-set "videoCodec=libx265"
-set "bitRate=1M"  :: Low bitrate for proxies
-set "maxDimension=1920"
+# Define parameters for video encoding
+$videoCodec = "libx265"
+$bitRate = "1M"  # Low bitrate for proxies
+$maxDimension = 1920
 
-:: Get the number of CPU cores with exception handling
-for /f "tokens=2 delims==" %%a in ('wmic cpu get NumberOfLogicalProcessors /value') do set "coreCount=%%a"
-if not defined coreCount set "coreCount=1"
+# Define the name for the proxy directory
+$ProxyDirName = "Proxy"
 
-:: Function to process video files in a directory
-:ProcessVideosInDirectory
-set "directory=%~1"
+# Get the number of CPU cores with exception handling
+Try {
+    $coreCount = (Get-WmiObject Win32_Processor | Measure-Object -Property NumberOfLogicalProcessors -Sum).Sum
+} Catch {
+    Write-Host "Error retrieving CPU core count: $_"
+    $coreCount = 1  # Default to 1 core if there's an error
+}
 
-:: Ensure the "proxy" subdirectory exists
-set "proxyDir=%directory%\proxy"
-if not exist "%proxyDir%" (
-    mkdir "%proxyDir%"
-    if errorlevel 1 (
-        echo Error creating proxy directory: %proxyDir%
-        goto :eof
+# Function to process video files in a directory
+function Process-VideosInDirectory {
+    param (
+        [string]$directory
     )
-)
 
-:: Get all video files in the current directory (excluding subdirectories)
-for %%f in ("%directory%\*.mp4" "%directory%\*.avi" "%directory%\*.mkv" "%directory%\*.mov" "%directory%\*.wmv") do (
-    set "file=%%f"
-    call :ProcessFile
-)
+    # Ensure the proxy subdirectory exists
+    $proxyDir = Join-Path -Path $directory -ChildPath $ProxyDirName
+    if (-not (Test-Path -Path $proxyDir)) {
+        Try {
+            New-Item -ItemType Directory -Path $proxyDir
+        } Catch {
+            Write-Host "Error creating proxy directory: $_"
+            return
+        }
+    }
 
-goto :eof
+    # Get all video files in the current directory (excluding subdirectories)
+    $videoFiles = Get-ChildItem -Path $directory -File | Where-Object {
+        $_.Extension -match '\.(mp4|avi|mkv|mov|wmv)$'
+    }
 
-:ProcessFile
-:: Construct the output file name and path
-set "outputFile=%proxyDir%\%~n1.mov"
-set "tempOutputFile=%outputFile%.tmp"
+    # Check and remove proxies for videos no longer in source directory
+    Get-ChildItem -Path $proxyDir -Filter *.mov | ForEach-Object {
+        $originalFile = (Get-ChildItem -Path $directory -File | Where-Object { 
+            $_.BaseName -eq $_.BaseName -and $_.Name -replace '\.mov$', '' -like $_.Name
+        })
+        if (-not $originalFile) {
+            Remove-Item $_.FullName -Force
+            Write-Host "Removed proxy $($_.Name) as original video not found."
+        }
+    }
 
-:: Check if proxy already exists
-if exist "%outputFile%" (
-    echo Proxy for %file% already exists. Skipping.
-    goto :eof
-)
+    foreach ($file in $videoFiles) {
+        # Construct the output file name and path
+        $outputFile = Join-Path -Path $proxyDir -ChildPath ($file.BaseName + ".mov")
+        $tempOutputFile = $outputFile + ".tmp"
+        
+        # Check if proxy already exists
+        if (Test-Path -Path $outputFile) {
+            Write-Host "Proxy for $($file.Name) already exists. Skipping."
+            continue
+        }
+        
+        # Use FFmpeg to encode the video with specified parameters
+        $ffmpegCommand = "ffmpeg -threads $coreCount -i `"$($file.FullName)`" -c:v $videoCodec -b:v $bitRate -vf `"scale='min($maxDimension, iw)':-2`" -f mov `"$tempOutputFile`""
+        
+        Write-Host "Creating proxy for $($file.Name)"
+        Write-Verbose "FFmpeg command: $ffmpegCommand"
+        
+        Try {
+            Invoke-Expression $ffmpegCommand
+            if ($LASTEXITCODE -eq 0) {
+                Rename-Item -Path $tempOutputFile -NewName $outputFile
+                Write-Host "Proxy created successfully for $($file.Name)"
+            } else {
+                Write-Host "Failed to create proxy for $($file.Name)"
+            }
+        } Catch {
+            Write-Host "Error creating proxy for $($file.Name): $_"
+        }
+    }
+}
 
-:: Use FFmpeg to encode the video with specified parameters
-set "ffmpegCommand=ffmpeg -threads %coreCount% -i "%file%" -c:v %videoCodec% -b:v %bitRate% -vf "scale='min(%maxDimension%, iw)':-2" -f mov "%tempOutputFile%""
+# Recursively process all directories, excluding proxy directories
+Get-ChildItem -Path $PSScriptRoot -Recurse -Directory | Where-Object {
+    $_.Name -notmatch "^$ProxyDirName$" -and $_.FullName -notmatch "\\$ProxyDirName\\"
+} | ForEach-Object {
+    Process-VideosInDirectory -directory $_.FullName
+}
 
-echo Creating proxy for %file%
-echo FFmpeg command: %ffmpegCommand%
+# Process the root directory as well
+Process-VideosInDirectory -directory $PSScriptRoot
 
-:: Execute the FFmpeg command
-%ffmpegCommand%
-if errorlevel 1 (
-    echo Failed to create proxy for %file%
-    goto :eof
-)
-
-:: Rename the temporary output file to the final output file
-rename "%tempOutputFile%" "%outputFile%"
-if errorlevel 1 (
-    echo Error renaming temporary file for %file%
-    goto :eof
-)
-
-echo Proxy created successfully for %file%
-
-goto :eof
-
-:: Recursively process all directories
-for /r %%d in (.) do (
-    if exist "%%d" (
-        call :ProcessVideosInDirectory "%%d"
-    )
-)
-
-:: Process the root directory as well
-call :ProcessVideosInDirectory "%cd%"
-
-pause
-endlocal
+Read-Host -Prompt "Press Enter to exit"
