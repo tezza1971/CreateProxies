@@ -1,10 +1,10 @@
-# CreateProxies.ps1
+# CreateProxies
 
 ## Overview
 
-`CreateProxies.ps1` is a PowerShell script designed to create low-bitrate proxy videos from high-resolution video files. This script uses FFmpeg to transcode the videos into a more manageable format, making it easier to work with large video files during the editing process. The script also ensures that proxies are kept up-to-date and removes any proxies for videos that no longer exist in the source directory. It uses the Davinci Resolve naming convention so the editing suite should automatically use the proxies if you enable the editor to do so.
+`CreateProxies` is a set of scripts designed to create low-bitrate proxy videos from high-resolution video files. These scripts use FFmpeg to transcode the videos into a more manageable format, making it easier to work with large video files during the editing process. The scripts also ensure that proxies are kept up-to-date and remove any proxies for videos that no longer exist in the source directory. They use the Davinci Resolve naming convention so the editing suite should automatically use the proxies if you enable the editor to do so.
 
-All you need to do is throw a copy of this script into any folder where you have videos, then double click on it. 
+All you need to do is throw a copy of the appropriate script into any folder where you have videos, then double click on it.
 
 ## Features
 
@@ -18,10 +18,11 @@ All you need to do is throw a copy of this script into any folder where you have
 
 ## Requirements
 
-- PowerShell
 - FFmpeg (must be installed and accessible in the system's PATH)
 
 ## Usage
+
+### Windows
 
 1. **Clone the repository or download the script:**
 
@@ -36,10 +37,33 @@ All you need to do is throw a copy of this script into any folder where you have
 
 3. **Run the script:**
 
-    Open a PowerShell terminal and navigate to the directory containing the script. Run the script using the following command:
+    Double-click the [CreateProxies.bat](http://_vscodecontentref_/1) file to execute the script.
 
-    ```powershell
-    .\CreateProxies.ps1
+### macOS and Linux
+
+1. **Clone the repository or download the script:**
+
+    ```sh
+    git clone https://github.com/your-repo/CreateProxies.git
+    cd CreateProxies
+    ```
+
+2. **Ensure FFmpeg is installed and accessible:**
+
+    Download and install FFmpeg from [FFmpeg.org](https://ffmpeg.org/download.html) and make sure it is added to your system's PATH.
+
+3. **Set executable permissions for the script:**
+
+    ```sh
+    chmod +x CreateProxies.sh
+    ```
+
+4. **Run the script:**
+
+    Double-click the [CreateProxies.sh](http://_vscodecontentref_/2) file or run it from the terminal:
+
+    ```sh
+    ./CreateProxies.sh
     ```
 
 ## Script Details
@@ -52,25 +76,25 @@ All you need to do is throw a copy of this script into any folder where you have
 
 ### Core Count Detection
 
-The script attempts to detect the number of CPU cores to optimize FFmpeg performance. If it fails, it defaults to using a single core.
+The scripts attempt to detect the number of CPU cores to optimize FFmpeg performance. If they fail, they default to using a single core.
 
 ### Proxy Directory
 
-The script ensures the existence of a [proxy](http://_vscodecontentref_/0) subdirectory in the script's directory. This is where all proxy files are stored.
+The scripts ensure the existence of a [proxy](http://_vscodecontentref_/3) subdirectory in the script's directory. This is where all proxy files are stored.
 
 ### Video File Detection
 
-The script scans the current directory for video files with the following extensions: `.mp4`, `.avi`, `.mkv`, `.mov`, and `.wmv`.
+The scripts scan the current directory for video files with the following extensions: `.mp4`, `.avi`, `.mkv`, `.mov`, and `.wmv`.
 
 ### Proxy Management
 
-- **Creation:** The script creates proxy files for each detected video file using FFmpeg.
-- **Updating:** If a proxy file already exists, the script skips the creation process for that file.
-- **Cleanup:** The script removes proxy files for videos that no longer exist in the source directory.
+- **Creation:** The scripts create proxy files for each detected video file using FFmpeg.
+- **Updating:** If a proxy file already exists, the scripts skip the creation process for that file.
+- **Cleanup:** The scripts remove proxy files for videos that no longer exist in the source directory.
 
 ### Real-Time Progress
 
-The script uses FFmpeg's `-progress` option to provide real-time progress updates during the transcoding process.
+The scripts use FFmpeg's `-progress` option to provide real-time progress updates during the transcoding process.
 
 ## License
 
